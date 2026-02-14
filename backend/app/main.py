@@ -1,0 +1,69 @@
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import uuid
+
+from app.agent.research_agent import handle_query
+from app.memory.memory_manager import (
+    create_chat,
+    get_chat,
+    get_all_chats,
+    delete_chat
+)
+
+app = FastAPI(title="Research Agent")
+
+class QueryRequest(BaseModel):
+    session_id: str
+    query: str
+
+
+# 🔹 Create new chat
+@app.post("/chat/new")
+def new_chat():
+    session_id = str(uuid.uuid4())
+    create_chat(session_id)
+    return {"session_id": session_id}
+
+
+# 🔹 Send message (new or existing chat)
+@app.post("/chat")
+def chat(request: QueryRequest):
+    response = handle_query(
+        session_id=request.session_id,
+        query=request.query
+    )
+    return {"response": response}
+
+
+# 🔹 Get all chats (for sidebar)
+@app.get("/chat")
+def list_chats():
+    chats = get_all_chats()
+
+    for chat in chats:
+        chat.pop("_id", None)
+
+    return {"chats": chats}
+
+
+# 🔹 Get single chat
+@app.get("/chat/{session_id}")
+def get_single_chat(session_id: str):
+    chat = get_chat(session_id)
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    chat.pop("_id", None)
+    return chat
+
+
+# 🔹 Delete chat
+@app.delete("/chat/{session_id}")
+def remove_chat(session_id: str):
+    result = delete_chat(session_id)
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    return {"message": "Chat deleted"}
