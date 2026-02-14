@@ -3,7 +3,8 @@ from app.config import FAISS_PATH
 from app.embeddings.hf_embeddings import get_embeddings
 import os
 
-def load_or_create_vectorstore():
+
+def load_vectorstore():
     embeddings = get_embeddings()
 
     if os.path.exists(FAISS_PATH):
@@ -12,5 +13,11 @@ def load_or_create_vectorstore():
             embeddings,
             allow_dangerous_deserialization=True
         )
-    else:
-        return FAISS.from_texts([], embeddings)
+    return None
+
+
+def create_vectorstore(texts):
+    embeddings = get_embeddings()
+    vectorstore = FAISS.from_texts(texts, embeddings)
+    vectorstore.save_local(FAISS_PATH)
+    return vectorstore

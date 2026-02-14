@@ -1,6 +1,6 @@
 # Python
-backend/.venv/
-backend/venv/
+/.venv/
+/venv/
 backend/env/
 backend/.env
 backend/*.pyc
@@ -28,6 +28,7 @@ backend/*.egg-info/
 backend/.installed.cfg
 backend/*.egg
 backend/MANIFEST
+backend/faiss_index/
 
 # Node
 frontend/node_modules/
