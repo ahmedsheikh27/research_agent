@@ -12,6 +12,7 @@ def create_chat(session_id: str):
 
 def save_message(session_id: str, role: str, content: str):
 
+    # If first user message → set title
     chat = conversation_collection.find_one({"session_id": session_id})
 
     if not chat:
