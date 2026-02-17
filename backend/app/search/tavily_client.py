@@ -6,7 +6,7 @@ tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
 
 def search_web(query: str):
     response = tavily_client.search(
-        query=query, include_answer="advanced", search_depth="advanced", max_results=10
+        query=query, include_answer="advanced", search_depth="advanced", max_results=5
     )
     results = response.get("results", [])
     simplified_results = []
