@@ -28,7 +28,6 @@ class QueryRequest(BaseModel):
     query: str
 
 
-# 🔹 Create new chat
 @app.post("/chat/new")
 def new_chat():
     session_id = str(uuid.uuid4())
@@ -36,7 +35,6 @@ def new_chat():
     return {"session_id": session_id}
 
 
-# 🔹 Send message (new or existing chat)
 @app.post("/chat")
 def chat(request: QueryRequest):
     response = handle_query(
@@ -46,7 +44,6 @@ def chat(request: QueryRequest):
     return {"response": response}
 
 
-# 🔹 Get all chats (for sidebar)
 @app.get("/chat")
 def list_chats():
     chats = get_all_chats()
@@ -57,7 +54,6 @@ def list_chats():
     return {"chats": chats}
 
 
-# 🔹 Get single chat
 @app.get("/chat/{session_id}")
 def get_single_chat(session_id: str):
     chat = get_chat(session_id)
@@ -69,7 +65,6 @@ def get_single_chat(session_id: str):
     return chat
 
 
-# 🔹 Delete chat
 @app.delete("/chat/{session_id}")
 def remove_chat(session_id: str):
     result = delete_chat(session_id)
