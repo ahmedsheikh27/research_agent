@@ -19,7 +19,6 @@ def build_conversation_history(session_id: str):
         history += f"{msg['role']}: {msg['content']}\n"
     return history
 
-
 def is_conversation_question(query: str):
     keywords = [
         "earlier",
@@ -33,19 +32,13 @@ def is_conversation_question(query: str):
 
 
 def handle_query(session_id: str, query: str):
-    """
-    Handles a user query with RAG / Web context.
-    source_mode:
-        - "rag": Only RAG context → confidence 1.0
-        - "rag_web": RAG + Web Search → confidence 0.5
-        - "web": Only Web Search → confidence 0.3
-    """
 
     save_message(session_id, "user", query)
 
     chat_history = build_conversation_history(session_id)
 
     if is_conversation_question(query):
+
         prompt = f"""
 Conversation History:
 {chat_history}
@@ -53,69 +46,103 @@ Conversation History:
 User Question:
 {query}
 
+Instructions:
 Answer clearly based ONLY on conversation history.
-Do NOT use RAG or web context.
+Rules:
+1. Use ONLY information explicitly stated in the Conversation History.
+2. Do NOT use external knowledge.
+3. Do NOT use web knowledge.
+4. Do NOT make assumptions.
+5. Do NOT hallucinate missing details.
+6. If the answer is not found in the conversation history, respond exactly with:
+
+"The provided conversation history does not contain information to answer this question."
+
+7. Do NOT add extra explanations.
+8. Be concise and precise.
+
+Answer:
+
 """
+
         response = llm.invoke(prompt)
         save_message(session_id, "assistant", response.content)
         return response.content
 
-    context, sources = run_rag(query)
+    rag_result = run_rag(query)
 
-    citations = format_citations(sources)
+    mode = rag_result["mode"]
+    context = rag_result["context"]
+    web_results = rag_result["web_results"]
+    for result in web_results:
+        context += f"\n\n{result['content']}\nSource: {result['url']}"
 
+    
     prompt = f"""
 Conversation History:
 {chat_history}
 
-Research Context:
+RAG Context:
 {context}
+
+Mode Used:
+{mode}
 
 User Question:
 {query}
 
 Instructions:
 
-- Answer using ONLY the Research Context provided above.
-- Format the response as a **numbered ordered list**.
-- Each sentence in a point must be on a **new line**.
-- Provide **complete information**. Do not truncate or shorten; if additional relevant context can be logically inferred, include it as well.
-- After each point, include the **source URL only** at the end of the point in this exact format: ([https://source-url.com])
-  - If the source URL is not available, do NOT write anything — simply omit the source entirely.
-  - Do NOT write "Source:", "Information not found in provided sources.", or any other label.
-- At the end of the list, provide a **confidence score** in the format: `Confidence: X`, where:
-  - 1.0 → Information comes from full web search
-  - 0.5 → Information comes from RAG + web search
-  - 0.0 → Information comes entirely from the provided context (RAG)
+Formatting Rules (VERY STRICT):
+1. If mode is WEB, answer ONLY from Web Context and your answer format is EXACTLY with:
+Web searched results:
+
+2. If mode is RAG, answer ONLY from RAG Context and your answer format is EXACTLY with:
+Rag searched items:
+
+3. After the heading, provide a numbered ordered list.
+
+4. Each numbered item must:
+   - Be on a new line.
+   - Contain complete information.
+   - End with the source URL in this exact format:
+     https://example.com
+
+5. Leave one blank line between each numbered item.
+
+Correct Format Example:
+
+Web searched results:
+
+1. Some information here with explanation. https://example.com
+
+2. Another piece of information here. https://example.com
+
+3. Third piece of information here. https://example.com
+
+Important Rules:
+
+- Do NOT use bullet points.
 - Do NOT return JSON.
-- Do NOT add explanations outside the numbered list.
-- Do NOT include any source label text — only bare URLs inside ([]).
-- Ensure each sentence ends with a line break before the next sentence.
-- Number each key point properly in sequence.
+- Do NOT write "Source:".
+- Do NOT add text before or after the list.
+- If no URL exists in RAG context, omit the URL completely.
+- Do NOT hallucinate any information.
+- Use ONLY provided context.
 
-Example format:
-{{
+Confidence scoring rules:
 
-1. First key point here.
-   Second sentence of the first point if needed.
-   ([https://examplesource1.com])
+- 1.0 → your confidense is 1.0 if you used Pure RAG
+- 0.5 → your confidense is 0.5 if you used Pure WEB
 
-2. Second key point here.
-   Additional info if relevant.
-   ([https://example-source2.com])
+After the list, add exactly:
 
-3. Third key point here.
-   ([https://examplesource3.com])
-
-Confidence: 1.0
-}}
-
-Now generate the response.
+Confidence: X
 """
 
     response = llm.invoke(prompt)
 
-    final_answer = f"{response.content}\nSources:\n{citations}"
+    final_answer = response.content
 
     save_message(session_id, "assistant", final_answer)
 

@@ -1,0 +1,163 @@
+============================= test session starts =============================
+platform win32 -- Python 3.10.0, pytest-9.0.2, pluggy-1.6.0
+rootdir: D:\work\al\research_agent\backend
+configfile: pytest.ini
+plugins: anyio-4.12.1, langsmith-0.7.3, cov-7.0.0
+collected 10 items
+
+test_research_agent.py .F....F...                                        [100%]
+
+================================== FAILURES ===================================
+_______________________ test_handle_query_conversation ________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002AD9134D150>
+
+    def test_handle_query_conversation(monkeypatch):
+    
+        monkeypatch.setattr(
+            research_agent,
+            "get_chat",
+            lambda session_id: {
+                "messages": [
+                    {"role": "user", "content": "Hello"},
+                    {"role": "assistant", "content": "Hi there!"}
+                ]
+            }
+        )
+    
+        monkeypatch.setattr(
+            research_agent,
+            "save_message",
+            lambda a, b, c: None
+        )
+    
+        monkeypatch.setattr(
+            research_agent,
+            "llm",
+            MockLLM("This is a conversation response.\n\nConfidence: 0.8")
+        )
+    
+>       result = research_agent.handle_query("abc", "How are you?")
+
+test_research_agent.py:87: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\app\agent\research_agent.py:109: in handle_query
+    context, sources = run_rag(query)
+..\app\rag\rag_pipeline.py:46: in run_rag
+    web_results = search_web(query)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+query = 'How are you?'
+
+    def search_web(query: str):
+        response = tavily_client.search(
+            query=query, include_answer="advanced", search_depth="advanced", max_results=5
+        )
+        print("Tvily API Used")
+        results = response.get("results", [])
+        simplified_results = []
+        for r in results:
+            simplified_results.append({
+                "url": r.get("url"),
+                "content": r.get("content"),
+                "score": r.get("score")
+            })
+    
+>       print(simplified_results['url'])
+E       TypeError: list indices must be integers or slices, not str
+
+..\app\search\tavily_client.py:21: TypeError
+---------------------------- Captured stdout call -----------------------------
+Tvily API Used
+____________________________ test_invalid_session _____________________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002ADA9AD2A10>
+
+    def test_invalid_session(monkeypatch):
+    
+        monkeypatch.setattr(
+            research_agent,
+            "get_chat",
+            lambda session_id: []
+        )
+    
+        monkeypatch.setattr(
+            research_agent,
+            "save_message",
+            lambda a, b, c: None
+        )
+    
+        monkeypatch.setattr(
+            research_agent,
+            "llm",
+            MockLLM("Handled invalid session.\n\nConfidence: 0.5")
+        )
+    
+>       result = research_agent.handle_query("", "Test")
+
+test_research_agent.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+..\app\agent\research_agent.py:109: in handle_query
+    context, sources = run_rag(query)
+..\app\rag\rag_pipeline.py:46: in run_rag
+    web_results = search_web(query)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+query = 'Test'
+
+    def search_web(query: str):
+        response = tavily_client.search(
+            query=query, include_answer="advanced", search_depth="advanced", max_results=5
+        )
+        print("Tvily API Used")
+        results = response.get("results", [])
+        simplified_results = []
+        for r in results:
+            simplified_results.append({
+                "url": r.get("url"),
+                "content": r.get("content"),
+                "score": r.get("score")
+            })
+    
+>       print(simplified_results['url'])
+E       TypeError: list indices must be integers or slices, not str
+
+..\app\search\tavily_client.py:21: TypeError
+---------------------------- Captured stdout call -----------------------------
+Tvily API Used
+============================== warnings summary ===============================
+tests/test_research_agent.py::test_handle_query_conversation
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/test_research_agent.py::test_handle_query_conversation
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/test_research_agent.py::test_handle_query_conversation
+  <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.10.0-final-0 _______________
+
+Name                                                                  Stmts   Miss  Cover
+-----------------------------------------------------------------------------------------
+D:\work\al\research_agent\backend\app\__init__.py                         0      0   100%
+D:\work\al\research_agent\backend\app\agent\__init__.py                   0      0   100%
+D:\work\al\research_agent\backend\app\agent\research_agent.py            50     11    78%
+D:\work\al\research_agent\backend\app\citations\citation_manager.py       5      4    20%
+D:\work\al\research_agent\backend\app\config.py                           8      0   100%
+D:\work\al\research_agent\backend\app\database\mongo_client.py           12      3    75%
+D:\work\al\research_agent\backend\app\database\vector_store.py           14      5    64%
+D:\work\al\research_agent\backend\app\embeddings\hf_embeddings.py         4      0   100%
+D:\work\al\research_agent\backend\app\main.py                            39     39     0%
+D:\work\al\research_agent\backend\app\memory\memory_manager.py           19     11    42%
+D:\work\al\research_agent\backend\app\rag\chunker.py                      4      2    50%
+D:\work\al\research_agent\backend\app\rag\rag_pipeline.py                41     24    41%
+D:\work\al\research_agent\backend\app\rag\retriever.py                    2      0   100%
+D:\work\al\research_agent\backend\app\search\tavily_client.py            13      2    85%
+-----------------------------------------------------------------------------------------
+TOTAL                                                                   211    101    52%
+=========================== short test summary info ===========================
+FAILED test_research_agent.py::test_handle_query_conversation - TypeError: li...
+FAILED test_research_agent.py::test_invalid_session - TypeError: list indices...
+================== 2 failed, 8 passed, 3 warnings in 17.44s ===================

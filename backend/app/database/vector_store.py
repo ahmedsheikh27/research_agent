@@ -16,8 +16,8 @@ def load_vectorstore():
     return None
 
 
-def create_vectorstore(texts):
+def create_vectorstore(documents):
     embeddings = get_embeddings()
-    vectorstore = FAISS.from_texts(texts, embeddings)
+    vectorstore = FAISS.from_documents(documents, embeddings)  
     vectorstore.save_local(FAISS_PATH)
     return vectorstore
