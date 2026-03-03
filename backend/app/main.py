@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from fastapi.responses import RedirectResponse
 import uuid
 
 from app.agent.research_agent import handle_query
@@ -17,6 +18,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",   # Vite default
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://localhost:5174",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -26,6 +29,12 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     session_id: str
     query: str
+
+
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello World"}
 
 
 @app.post("/chat/new")

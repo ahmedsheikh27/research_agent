@@ -3,7 +3,7 @@
 A full-stack AI-powered Research Agent built with:
 
 - **FastAPI** (Backend)
--  **Next.js** (Frontend)
+-  **React + Vite** (Frontend)
 -  **MongoDB Atlas** (Database)
 -  **FAISS** (Vector Store)
 -  **Tavily API** (Web Search)
