@@ -2,7 +2,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from app.config import GOOGLE_API_KEY
 from app.rag.rag_pipeline import run_rag
 from app.memory.memory_manager import save_message, get_chat
-from app.citations.citation_manager import format_citations
+from app.agent.history_keywords import HISTORY_KEYWORDS
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash", google_api_key=GOOGLE_API_KEY, temperature=0.3
@@ -20,14 +20,7 @@ def build_conversation_history(session_id: str):
     return history
 
 def is_conversation_question(query: str):
-    keywords = [
-        "earlier",
-        "before",
-        "start of chat",
-        "discuss",
-        "search first",
-        "conversation",
-    ]
+    keywords = HISTORY_KEYWORDS
     return any(k in query.lower() for k in keywords)
 
 
@@ -42,10 +35,8 @@ def handle_query(session_id: str, query: str):
         prompt = f"""
 Conversation History:
 {chat_history}
-
 User Question:
 {query}
-
 Instructions:
 Answer clearly based ONLY on conversation history.
 Rules:
@@ -55,95 +46,86 @@ Rules:
 4. Do NOT make assumptions.
 5. Do NOT hallucinate missing details.
 6. If the answer is not found in the conversation history, respond exactly with:
-
 "The provided conversation history does not contain information to answer this question."
-
 7. Do NOT add extra explanations.
 8. Be concise and precise.
-
 Answer:
-
 """
-
         response = llm.invoke(prompt)
         save_message(session_id, "assistant", response.content)
         return response.content
 
-    rag_result = run_rag(query)
-
+    # use RAG / Web 
+    rag_result = run_rag(query, session_id)
     mode = rag_result["mode"]
     context = rag_result["context"]
     web_results = rag_result["web_results"]
+
     for result in web_results:
         context += f"\n\n{result['content']}\nSource: {result['url']}"
 
-    
     prompt = f"""
-Conversation History:
-{chat_history}
+You will be explicitly told which mode is active via the "Mode:" field below. Follow it exactly.
 
-RAG Context:
-{context}
+Context:{context}
 
-Mode Used:
-{mode}
+Mode:{mode}
 
-User Question:
-{query}
+User Question:{query}
+
 
 Instructions:
 
-Formatting Rules (VERY STRICT):
-1. If mode is WEB, answer ONLY from Web Context and your answer format is EXACTLY with:
+You are a research assistant. Your task is to answer the user's question ONLY using the provided context.
+---
+
+STRICT RULES:
+
+1. Use ONLY the provided context.
+2. NEVER use external knowledge.
+3. NEVER hallucinate or invent facts.
+4. If the answer is not in the context, respond only with the context message as-is.
+5. Follow the formatting rules strictly.
+
+---
+
+Response Format Rules:
+
+If Mode is WEB → start your response with exactly:
 Web searched results:
 
-2. If mode is RAG, answer ONLY from RAG Context and your answer format is EXACTLY with:
+If Mode is RAG → start your response with exactly:
 Rag searched items:
 
-3. After the heading, provide a numbered ordered list.
+Then provide an unordered list (no bullets, no numbers, no dashes).
+Each item must be on its own line, separated by a blank line.
+If a source URL exists, place it at the end of that item's line.
 
-4. Each numbered item must:
-   - Be on a new line.
-   - Contain complete information.
-   - End with the source URL in this exact format:
-     https://example.com
-
-5. Leave one blank line between each numbered item.
-
-Correct Format Example:
+Example:
 
 Web searched results:
 
-1. Some information here with explanation. https://example.com
+Information about the topic explained clearly here. https://example.com
 
-2. Another piece of information here. https://example.com
+Another relevant piece of information. https://example.com
 
-3. Third piece of information here. https://example.com
+---
 
-Important Rules:
+Restrictions:
+- No numbered lists
+- No bullet characters (-, *, •)
+- No JSON output
+- No "Source:" label
+- No extra explanation outside the list
 
-- Do NOT use bullet points.
-- Do NOT return JSON.
-- Do NOT write "Source:".
-- Do NOT add text before or after the list.
-- If no URL exists in RAG context, omit the URL completely.
-- Do NOT hallucinate any information.
-- Use ONLY provided context.
+---
 
-Confidence scoring rules:
-
-- 1.0 → your confidense is 1.0 if you used Pure RAG
-- 0.5 → your confidense is 0.5 if you used Pure WEB
-
-After the list, add exactly:
-
-Confidence: X
+Confidence:
+- If Mode is WEB → end with: Confidence: 0.5
+- If Mode is RAG → end with: Confidence: 1.0
 """
-
     response = llm.invoke(prompt)
-
     final_answer = response.content
-
     save_message(session_id, "assistant", final_answer)
 
     return final_answer

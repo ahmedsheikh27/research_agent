@@ -1,23 +1,31 @@
-from langchain_community.vectorstores import FAISS
-from app.config import FAISS_PATH
-from app.embeddings.hf_embeddings import get_embeddings
 import os
+from langchain_community.vectorstores import FAISS
+from app.embeddings.hf_embeddings import get_embeddings
+
+BASE_PATH = "faiss_indexes"
 
 
-def load_vectorstore():
+def load_vectorstore(session_id: str):
+
     embeddings = get_embeddings()
+    path = f"{BASE_PATH}/{session_id}"
 
-    if os.path.exists(FAISS_PATH):
+    if os.path.exists(path):
         return FAISS.load_local(
-            FAISS_PATH,
+            path,
             embeddings,
             allow_dangerous_deserialization=True
         )
+
     return None
 
 
-def create_vectorstore(documents):
+def create_vectorstore(documents, session_id: str):
+
     embeddings = get_embeddings()
-    vectorstore = FAISS.from_documents(documents, embeddings)  
-    vectorstore.save_local(FAISS_PATH)
+    vectorstore = FAISS.from_documents(documents, embeddings)
+
+    path = f"{BASE_PATH}/{session_id}"
+    vectorstore.save_local(path)
+
     return vectorstore

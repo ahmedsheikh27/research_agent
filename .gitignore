@@ -28,7 +28,7 @@ backend/*.egg-info/
 backend/.installed.cfg
 backend/*.egg
 backend/MANIFEST
-backend/faiss_index/
+backend/faiss_indexes/
 
 # Node
 frontend/node_modules/

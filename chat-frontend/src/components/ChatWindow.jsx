@@ -22,7 +22,7 @@ export default function ChatWindow({ messages, onSendMessage, isLoading }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen bg-dark-900 relative">
+    <div className="flex flex-col h-full bg-dark-900 relative">
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 md:p-8">
         {messages.length === 0 ? (
@@ -40,12 +40,12 @@ export default function ChatWindow({ messages, onSendMessage, isLoading }) {
             ))}
             {isLoading && (
               <div className="flex gap-4 w-full max-w-4xl mx-auto p-6">
-                 <div className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center flex-shrink-0">
-                    <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
-                 </div>
-                 <div className="pt-1.5 flex items-center">
-                    <span className="text-slate-400 animate-pulse">Researching...</span>
-                 </div>
+                <div className="w-8 h-8 rounded-lg bg-primary-500/10 flex items-center justify-center flex-shrink-0">
+                  <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
+                </div>
+                <div className="pt-1.5 flex items-center">
+                  <span className="text-slate-400 animate-pulse">Researching...</span>
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -54,9 +54,11 @@ export default function ChatWindow({ messages, onSendMessage, isLoading }) {
       </div>
 
       {/* Input Area */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-dark-900 via-dark-900 to-transparent pt-10 pb-6 px-4 md:px-8">
-        <div className="max-w-4xl mx-auto">
-          <form 
+      <div className="absolute bottom-0 left-0 right-2 bg-gradient-to-t from-gray-950 via-dark-900 to-transparent pt-10 pb-6 px-2 md:px-8 pointer-events-none">
+
+        <div className="max-w-4xl mx-auto pointer-events-auto">
+
+          <form
             onSubmit={handleSubmit}
             className="relative bg-dark-800 border border-dark-600 rounded-2xl shadow-xl overflow-hidden focus-within:border-primary-500/50 transition-colors"
           >
@@ -74,6 +76,7 @@ export default function ChatWindow({ messages, onSendMessage, isLoading }) {
               rows={1}
               style={{ minHeight: '56px' }}
             />
+
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
@@ -82,9 +85,13 @@ export default function ChatWindow({ messages, onSendMessage, isLoading }) {
               <Send className="w-5 h-5" />
             </button>
           </form>
+
           <div className="text-center mt-2">
-            <span className="text-xs text-slate-500">AI can make mistakes. Verify important information.</span>
+            <span className="text-xs text-slate-500">
+              AI can make mistakes. Verify important information.
+            </span>
           </div>
+
         </div>
       </div>
     </div>

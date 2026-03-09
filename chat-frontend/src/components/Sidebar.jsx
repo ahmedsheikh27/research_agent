@@ -27,10 +27,10 @@ export default function Sidebar({ chats, activeSessionId, onSelectChat, onNewCha
       </button>
 
       {/* New Chat Button */}
-      <div className="p-4 border-b border-dark-600 overflow-hidden">
+      <div className="p-4 overflow-hidden">
         <button
           onClick={onNewChat}
-          className={`flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-white rounded-xl font-medium transition-all h-11 ${
+          className={`flex items-center gap-2 bg-primary-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-all h-11 ${
             isCollapsed ? 'w-11 justify-center' : 'w-full px-4'
           }`}
         >
@@ -41,6 +41,7 @@ export default function Sidebar({ chats, activeSessionId, onSelectChat, onNewCha
 
       {/* Chat History List */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-2 custom-scrollbar">
+        <h3>Chats</h3>
         {chats.map((chat) => (
           <div
             key={chat.session_id}
@@ -82,7 +83,7 @@ export default function Sidebar({ chats, activeSessionId, onSelectChat, onNewCha
         ))}
       </div>
 
-      {/* Sidebar Footer/Branding */}
+      {/* Sidebar Footer */}
       <div className="p-4 border-t border-dark-600 overflow-hidden">
         <div className={`flex items-center gap-3 text-slate-500 ${isCollapsed ? 'justify-center' : ''}`}>
            <div className="w-8 h-8 rounded-lg bg-dark-700 flex items-center justify-center flex-shrink-0">
