@@ -10,7 +10,7 @@ const api = axios.create({
 export const chatService = {
   getAllChats: async () => {
     const response = await api.get('/chat');
-    return response.data; 
+    return response.data;
   },
 
   createSession: async () => {
@@ -24,9 +24,9 @@ export const chatService = {
   },
 
   sendMessage: async (sessionId, query) => {
-    const response = await api.post('/chat', { 
-      session_id: sessionId, 
-      query: query 
+    const response = await api.post('/chat', {
+      session_id: sessionId,
+      query: query
     });
     return response.data;
   },
@@ -34,5 +34,18 @@ export const chatService = {
   deleteChat: async (sessionId) => {
     const response = await api.delete(`/chat/${sessionId}`);
     return response.data;
-  }
+  },
+
+  uploadPDF: async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await api.post("/chat/upload-pdf", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    return response.data; // { message, session_id }
+  },
 };

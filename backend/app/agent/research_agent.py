@@ -19,6 +19,7 @@ def build_conversation_history(session_id: str):
         history += f"{msg['role']}: {msg['content']}\n"
     return history
 
+
 def is_conversation_question(query: str):
     keywords = HISTORY_KEYWORDS
     return any(k in query.lower() for k in keywords)
@@ -26,9 +27,11 @@ def is_conversation_question(query: str):
 
 def handle_query(session_id: str, query: str):
 
+    chat = get_chat(session_id)
     save_message(session_id, "user", query)
 
     chat_history = build_conversation_history(session_id)
+    is_pdf = chat.get("pdf", False) if chat else False
 
     if is_conversation_question(query):
 
@@ -54,16 +57,16 @@ Answer:
         response = llm.invoke(prompt)
         save_message(session_id, "assistant", response.content)
         return response.content
-
-    # use RAG / Web 
-    rag_result = run_rag(query, session_id)
+    # use RAG / Web
+    rag_result = run_rag(query, session_id, pdf_chat=is_pdf)
     mode = rag_result["mode"]
     context = rag_result["context"]
-    web_results = rag_result["web_results"]
 
-    for result in web_results:
-        context += f"\n\n{result['content']}\nSource: {result['url']}"
-
+    if "web_results" in rag_result:
+        for result in rag_result["web_results"]:
+            context += (
+                f"\n\n{result.get('content', '')}\nSource: {result.get('url', 'N/A')}"
+            )
     prompt = f"""
 You will be explicitly told which mode is active via the "Mode:" field below. Follow it exactly.
 
@@ -97,6 +100,10 @@ Web searched results:
 If Mode is RAG → start your response with exactly:
 Rag searched items:
 
+If Mode is PDF → start your response with exactly:
+Pdf searched items:
+And use format with heading and paragrapghs for answering PDF Mode.
+
 Then provide an unordered list (no bullets, no numbers, no dashes).
 Each item must be on its own line, separated by a blank line.
 If a source URL exists, place it at the end of that item's line.
@@ -122,6 +129,7 @@ Restrictions:
 
 Confidence:
 - If Mode is WEB → end with: Confidence: 0.5
+- If Mode is PDF → end with: Confidence: 0.8
 - If Mode is RAG → end with: Confidence: 1.0
 """
     response = llm.invoke(prompt)

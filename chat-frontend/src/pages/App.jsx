@@ -8,6 +8,7 @@ import Header from "../components/Header";
 export default function AppLayout() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const [isUploading, setIsUploading] = useState(false);
 
   const [chats, setChats] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -29,7 +30,9 @@ export default function AppLayout() {
     try {
       const data = await chatService.getChatHistory(id);
       const history = Array.isArray(data) ? data : data.history || data.messages || [];
-      setMessages(history);
+
+      setMessages((prev) => (history.length > 0 ? history : prev));
+
     } catch (error) {
       console.error("Error fetching history:", error);
       navigate("/app");
@@ -39,14 +42,8 @@ export default function AppLayout() {
   };
 
   useEffect(() => {
-    const init = async () => {
-      const list = await loadChats();
-      if (!sessionId && list && list.length > 0) {
-        navigate(`/app/chat/${session_id}`, { replace: true });
-      }
-    };
-    init();
-  }, [loadChats, navigate, sessionId]);
+    loadChats();
+  }, [loadChats, sessionId]);
 
   useEffect(() => {
     if (sessionId) {
@@ -66,20 +63,26 @@ export default function AppLayout() {
     }
   };
 
+  // App.jsx
   const handleSendMessage = async (query) => {
-    if (!sessionId) return;
+    if (!query.trim()) return;
 
-    setIsLoading(true);
-    setMessages((prev) => [...prev, { role: "user", content: query }]);
+    // 1. Update UI locally
+    setMessages(prev => [...prev, { role: "user", content: query }]);
 
     try {
-      const data = await chatService.sendMessage(sessionId, query);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
-      loadChats();
+      // 2. The call to the backend
+      const response = await chatService.sendMessage(sessionId, query);
+
+      // 3. REFRESH SIDEBAR NOW (Don't wait for assistant response)
+      // This makes the title update in the sidebar while the AI is still "typing"
+      await loadChats();
+
+      // 4. Update UI with assistant response
+      setMessages(prev => [...prev, { role: "assistant", content: response.response }]);
+
     } catch (error) {
-      console.error("Message error:", error);
-    } finally {
-      setIsLoading(false);
+      console.error("Error:", error);
     }
   };
 
@@ -92,6 +95,38 @@ export default function AppLayout() {
       console.error("Delete error:", error);
     }
   };
+  const handleUploadPDF = async (file) => {
+    if (!file) return;
+
+    // Basic validation
+    if (file.type !== "application/pdf") {
+      alert("Please upload a valid PDF file.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const data = await chatService.uploadPDF(file);
+
+      const welcomeMessage = {
+        role: "assistant",
+        content: `The PDF: ${file.name} uploaded successfully. Ask anything about pdf.`,
+        isInitial: true
+      };
+
+      setMessages([welcomeMessage]);
+
+      await loadChats();
+
+      navigate(`/app/chat/${data.session_id}`);
+
+    } catch (error) {
+      console.error("PDF Upload Error:", error);
+      alert("Failed to upload PDF. Ensure your backend is running.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-dark-900 text-slate-100 overflow-hidden">
@@ -101,18 +136,38 @@ export default function AppLayout() {
         onSelectChat={(id) => navigate(`/app/chat/${id}`)}
         onNewChat={handleNewChat}
         onDeleteChat={handleDeleteChat}
+        onUploadPDF={handleUploadPDF}
+        isUploading={isUploading}
       />
 
       <div className="flex-1 flex flex-col min-w-0">
-        
-        <Header/>
+
+        <Header />
 
         <main className="flex-1 overflow-hidden relative">
-          <ChatWindow
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            isLoading={isLoading}
-          />
+          {sessionId ? (
+            // SHOW CHAT WINDOW IF SESSION EXISTS
+            <ChatWindow messages={messages} onSendMessage={handleSendMessage} />
+          ) : (
+            // SHOW DASHBOARD IF NO SESSION (Empty State)
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+              <h2 className="text-2xl font-bold mb-6">Start a new research session</h2>
+              <div className="flex gap-4">
+                <button
+                  onClick={handleNewChat}
+                  className="px-6 py-3 bg-primary-500 rounded-xl font-medium"
+                >
+                  New Chat
+                </button>
+                <button
+                  onClick={() => document.querySelector('input[type="file"]').click()}
+                  className="px-6 py-3 bg-dark-700 border border-dark-600 rounded-xl font-medium"
+                >
+                  Upload PDF
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

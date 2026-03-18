@@ -29,6 +29,10 @@ backend/.installed.cfg
 backend/*.egg
 backend/MANIFEST
 backend/faiss_indexes/
+backend/tests/
+backend/temp_pdf/
+
+
 
 # Node
 frontend/node_modules/

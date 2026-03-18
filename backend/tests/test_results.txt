@@ -1,163 +1,71 @@
 ============================= test session starts =============================
-platform win32 -- Python 3.10.0, pytest-9.0.2, pluggy-1.6.0
+platform win32 -- Python 3.10.0, pytest-9.0.2, pluggy-1.6.0 -- d:\work\al\research_agent\.venv\Scripts\python.exe
+cachedir: .pytest_cache
 rootdir: D:\work\al\research_agent\backend
 configfile: pytest.ini
 plugins: anyio-4.12.1, langsmith-0.7.3, cov-7.0.0
-collected 10 items
+collecting ... collected 10 items
 
-test_research_agent.py .F....F...                                        [100%]
+test_research_agent.py::test_web_search_on_new_chat PASSED               [ 10%]
+test_research_agent.py::test_vectorstore_created FAILED                  [ 20%]
+test_research_agent.py::test_existing_chat_uses_rag PASSED               [ 30%]
+test_research_agent.py::test_similarity_scores PASSED                    [ 40%]
+test_research_agent.py::test_context_generation PASSED                   [ 50%]
+test_research_agent.py::test_out_of_context PASSED                       [ 60%]
+test_research_agent.py::test_empty_web_results PASSED                    [ 70%]
+test_research_agent.py::test_chunking PASSED                             [ 80%]
+test_research_agent.py::test_document_metadata PASSED                    [ 90%]
+test_research_agent.py::test_multiple_rag_results PASSED                 [100%]
 
 ================================== FAILURES ===================================
-_______________________ test_handle_query_conversation ________________________
+__________________________ test_vectorstore_created ___________________________
 
-monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002AD9134D150>
+mock_web = <MagicMock name='search_web' id='2662482411424'>
 
-    def test_handle_query_conversation(monkeypatch):
+    @patch("app.rag.rag_pipeline.search_web")
+    def test_vectorstore_created(mock_web):
     
-        monkeypatch.setattr(
-            research_agent,
-            "get_chat",
-            lambda session_id: {
-                "messages": [
-                    {"role": "user", "content": "Hello"},
-                    {"role": "assistant", "content": "Hi there!"}
-                ]
-            }
-        )
+        mock_web.return_value = [
+            {"url": "https://example.com", "content": "Machine learning is part of AI."}
+        ]
     
-        monkeypatch.setattr(
-            research_agent,
-            "save_message",
-            lambda a, b, c: None
-        )
+        run_rag("What is machine learning?", "test_session_2")
     
-        monkeypatch.setattr(
-            research_agent,
-            "llm",
-            MockLLM("This is a conversation response.\n\nConfidence: 0.8")
-        )
-    
->       result = research_agent.handle_query("abc", "How are you?")
+>       assert os.path.exists(f"{FAISS_PATH}/test_session_2")
+E       AssertionError: assert False
+E        +  where False = <function exists at 0x0000026BDAD46C20>('faiss_index/test_session_2')
+E        +    where <function exists at 0x0000026BDAD46C20> = <module 'ntpath' from 'C:\\Users\\Ahmed Amin\\AppData\\Local\\Programs\\Python\\Python310\\lib\\ntpath.py'>.exists
+E        +      where <module 'ntpath' from 'C:\\Users\\Ahmed Amin\\AppData\\Local\\Programs\\Python\\Python310\\lib\\ntpath.py'> = os.path
 
-test_research_agent.py:87: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-..\app\agent\research_agent.py:109: in handle_query
-    context, sources = run_rag(query)
-..\app\rag\rag_pipeline.py:46: in run_rag
-    web_results = search_web(query)
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-
-query = 'How are you?'
-
-    def search_web(query: str):
-        response = tavily_client.search(
-            query=query, include_answer="advanced", search_depth="advanced", max_results=5
-        )
-        print("Tvily API Used")
-        results = response.get("results", [])
-        simplified_results = []
-        for r in results:
-            simplified_results.append({
-                "url": r.get("url"),
-                "content": r.get("content"),
-                "score": r.get("score")
-            })
-    
->       print(simplified_results['url'])
-E       TypeError: list indices must be integers or slices, not str
-
-..\app\search\tavily_client.py:21: TypeError
+test_research_agent.py:59: AssertionError
 ---------------------------- Captured stdout call -----------------------------
-Tvily API Used
-____________________________ test_invalid_session _____________________________
-
-monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002ADA9AD2A10>
-
-    def test_invalid_session(monkeypatch):
-    
-        monkeypatch.setattr(
-            research_agent,
-            "get_chat",
-            lambda session_id: []
-        )
-    
-        monkeypatch.setattr(
-            research_agent,
-            "save_message",
-            lambda a, b, c: None
-        )
-    
-        monkeypatch.setattr(
-            research_agent,
-            "llm",
-            MockLLM("Handled invalid session.\n\nConfidence: 0.5")
-        )
-    
->       result = research_agent.handle_query("", "Test")
-
-test_research_agent.py:261: 
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-..\app\agent\research_agent.py:109: in handle_query
-    context, sources = run_rag(query)
-..\app\rag\rag_pipeline.py:46: in run_rag
-    web_results = search_web(query)
-_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
-
-query = 'Test'
-
-    def search_web(query: str):
-        response = tavily_client.search(
-            query=query, include_answer="advanced", search_depth="advanced", max_results=5
-        )
-        print("Tvily API Used")
-        results = response.get("results", [])
-        simplified_results = []
-        for r in results:
-            simplified_results.append({
-                "url": r.get("url"),
-                "content": r.get("content"),
-                "score": r.get("score")
-            })
-    
->       print(simplified_results['url'])
-E       TypeError: list indices must be integers or slices, not str
-
-..\app\search\tavily_client.py:21: TypeError
----------------------------- Captured stdout call -----------------------------
-Tvily API Used
+[CHAT] New chat detected. Running web search once...
 ============================== warnings summary ===============================
-tests/test_research_agent.py::test_handle_query_conversation
+tests/test_research_agent.py::test_web_search_on_new_chat
   <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
 
-tests/test_research_agent.py::test_handle_query_conversation
+tests/test_research_agent.py::test_web_search_on_new_chat
   <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
 
-tests/test_research_agent.py::test_handle_query_conversation
+tests/test_research_agent.py::test_web_search_on_new_chat
   <frozen importlib._bootstrap>:241: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =============================== tests coverage ================================
 _______________ coverage: platform win32, python 3.10.0-final-0 _______________
 
-Name                                                                  Stmts   Miss  Cover
------------------------------------------------------------------------------------------
-D:\work\al\research_agent\backend\app\__init__.py                         0      0   100%
-D:\work\al\research_agent\backend\app\agent\__init__.py                   0      0   100%
-D:\work\al\research_agent\backend\app\agent\research_agent.py            50     11    78%
-D:\work\al\research_agent\backend\app\citations\citation_manager.py       5      4    20%
-D:\work\al\research_agent\backend\app\config.py                           8      0   100%
-D:\work\al\research_agent\backend\app\database\mongo_client.py           12      3    75%
-D:\work\al\research_agent\backend\app\database\vector_store.py           14      5    64%
-D:\work\al\research_agent\backend\app\embeddings\hf_embeddings.py         4      0   100%
-D:\work\al\research_agent\backend\app\main.py                            39     39     0%
-D:\work\al\research_agent\backend\app\memory\memory_manager.py           19     11    42%
-D:\work\al\research_agent\backend\app\rag\chunker.py                      4      2    50%
-D:\work\al\research_agent\backend\app\rag\rag_pipeline.py                41     24    41%
-D:\work\al\research_agent\backend\app\rag\retriever.py                    2      0   100%
-D:\work\al\research_agent\backend\app\search\tavily_client.py            13      2    85%
------------------------------------------------------------------------------------------
-TOTAL                                                                   211    101    52%
+Name                                                                Stmts   Miss  Cover
+---------------------------------------------------------------------------------------
+D:\work\al\research_agent\backend\app\__init__.py                       0      0   100%
+D:\work\al\research_agent\backend\app\config.py                         8      0   100%
+D:\work\al\research_agent\backend\app\database\vector_store.py         16      0   100%
+D:\work\al\research_agent\backend\app\embeddings\hf_embeddings.py       4      0   100%
+D:\work\al\research_agent\backend\app\rag\chunker.py                    4      0   100%
+D:\work\al\research_agent\backend\app\rag\rag_pipeline.py              37      1    97%
+D:\work\al\research_agent\backend\app\search\tavily_client.py          12      8    33%
+test_research_agent.py                                                 76      2    97%
+---------------------------------------------------------------------------------------
+TOTAL                                                                 157     11    93%
 =========================== short test summary info ===========================
-FAILED test_research_agent.py::test_handle_query_conversation - TypeError: li...
-FAILED test_research_agent.py::test_invalid_session - TypeError: list indices...
-================== 2 failed, 8 passed, 3 warnings in 17.44s ===================
+FAILED test_research_agent.py::test_vectorstore_created - AssertionError: ass...
+================== 1 failed, 9 passed, 3 warnings in 39.25s ===================
