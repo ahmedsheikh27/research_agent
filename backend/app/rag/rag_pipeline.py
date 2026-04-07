@@ -12,9 +12,7 @@ def run_rag(query: str, session_id: str, k: int = 3, pdf_chat: bool = False):
 
     if pdf_chat:
 
-        pdf_index_path = f"faiss_indexes/pdf/{session_id}" 
-        
-        pdf_vectorstore = load_vectorstore(pdf_index_path) 
+        pdf_vectorstore = load_vectorstore(f"faiss_indexes/pdf/{session_id}")
         
         if pdf_vectorstore is None:
             return {
@@ -29,11 +27,11 @@ def run_rag(query: str, session_id: str, k: int = 3, pdf_chat: bool = False):
 
         if not relevant_docs:
             return {
-                "mode": "PDF",
-                "context": "No relevant information found in the uploaded PDF.",
-                "web_results": []
-            }
-
+            "mode": "PDF",
+            "context": "No relevant information found in the uploaded PDF for your query.",
+            "web_results": [],
+            "no_results": True 
+        }
         context = "\n\n".join([
             f"{doc.page_content}\nSource: PDF"
             for doc in relevant_docs
@@ -41,7 +39,9 @@ def run_rag(query: str, session_id: str, k: int = 3, pdf_chat: bool = False):
         return {
             "mode": "PDF",
             "context": context,
-            "web_results": []
+            "web_results": [],
+            "no_results": False 
+
         }
 
     # WEB / RAG MODE

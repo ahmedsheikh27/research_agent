@@ -29,7 +29,7 @@ backend/.installed.cfg
 backend/*.egg
 backend/MANIFEST
 backend/faiss_indexes/
-backend/tests/
+backend/faiss_indexes/pdf/
 backend/temp_pdf/
 
 

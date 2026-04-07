@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
+import shutil
 import os
 from app.agent.research_agent import handle_query
 from app.rag.pdf_chunks import create_pdf_vectorstore
@@ -39,8 +40,8 @@ def read_root():
 @app.post("/chat/new")
 def new_chat():
     session_id = str(uuid.uuid4())
-    create_chat(session_id)
-    return {"session_id": session_id}
+    create_chat(session_id, title="New Chat")
+    return {"session_id": session_id,}
 
 
 @app.post("/chat")
@@ -69,37 +70,24 @@ def get_single_chat(session_id: str):
     chat.pop("_id", None)
     return chat
 
-
-import shutil
-import os
-from fastapi import HTTPException
-
-
 @app.delete("/chat/{session_id}")
 def remove_chat(session_id: str):
-    # 1. First, delete from Database (MongoDB/SQL)
     result = delete_chat(session_id)
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    # 2. Define the paths
     paths_to_check = [f"faiss_indexes/{session_id}", f"faiss_indexes/pdf/{session_id}"]
 
-    # 3. CRITICAL: Trigger Garbage Collection
-    # This forces Python to close any "hanging" file handles
-    # that were opened by load_vectorstore()
+   
     gc.collect()
 
-    # 4. Attempt to delete folders
     for path in paths_to_check:
         if os.path.exists(path):
             try:
                 shutil.rmtree(path)
                 print(f"Successfully deleted: {path}")
             except PermissionError:
-                # If gc.collect() didn't work immediately,
-                # Windows might need a millisecond to release the lock.
                 print(
                     f"Windows lock detected on {path}. Try manual delete if it persists."
                 )
@@ -121,7 +109,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         f.write(await file.read())
 
     session_id = str(uuid.uuid4())
-    create_chat(session_id, pdf=True)
+    create_chat(session_id, pdf=True, title=file.filename)
 
     create_pdf_vectorstore(temp_file_path, session_id)
 

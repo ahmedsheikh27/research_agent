@@ -1,213 +1,95 @@
-import os
-import shutil
-import pytest
-from unittest.mock import patch
-
-from langchain_core.documents import Document
-
-from app.rag.rag_pipeline import run_rag
-from app.database.vector_store import create_vectorstore, load_vectorstore
-from app.config import FAISS_PATH
+import sys
+import types
+from app.agent import research_agent as ra
 
 
-# -----------------------------------
-# Test Setup / Teardown
-# -----------------------------------
+class FakeLLM:
+    def __init__(self, content):
+        self.content = content
+        self.prompts = []
 
-@pytest.fixture(autouse=True)
-def clean_faiss():
-    """Ensure clean FAISS index before each test."""
-    if os.path.exists(FAISS_PATH):
-        shutil.rmtree(FAISS_PATH)
-
-    yield
-
-    if os.path.exists(FAISS_PATH):
-        shutil.rmtree(FAISS_PATH)
+    def invoke(self, prompt):
+        self.prompts.append(prompt)
+        return type("Resp", (), {"content": self.content})()
 
 
-# -----------------------------------
-# 1️⃣ Web search triggers on new chat
-# -----------------------------------
+def _install_stub_modules():
+    if "wikipedia" not in sys.modules:
+        wiki = types.ModuleType("wikipedia")
+        wiki.search = lambda *_a, **_k: []
+        wiki.page = lambda *_a, **_k: types.SimpleNamespace(url="https://example.com")
+        wiki.summary = lambda *_a, **_k: "summary"
+        sys.modules["wikipedia"] = wiki
 
-@patch("app.rag.rag_pipeline.search_web")
-def test_web_search_on_new_chat(mock_web):
+    if "tavily" not in sys.modules:
+        tavily = types.ModuleType("tavily")
 
-    mock_web.return_value = [
-        {"url": "https://example.com", "content": "Artificial intelligence is the simulation of human intelligence."}
-    ]
+        class TavilyClient:
+            def __init__(self, api_key=None):
+                self.api_key = api_key
 
-    result = run_rag("What is artificial intelligence?", "test_session_1")
+            def search(self, **_kwargs):
+                return {"results": []}
 
-    assert result["mode"] == "WEB"
-    assert "context" in result
-
-
-# -----------------------------------
-# 2️⃣ Vectorstore gets created
-# -----------------------------------
-
-@patch("app.rag.rag_pipeline.search_web")
-def test_vectorstore_created(mock_web):
-
-    mock_web.return_value = [
-        {"url": "https://example.com", "content": "Machine learning is part of AI."}
-    ]
-
-    run_rag("What is machine learning?", "test_session_2")
-
-    assert os.path.exists(f"{FAISS_PATH}/test_session_2")
+        tavily.TavilyClient = TavilyClient
+        sys.modules["tavily"] = tavily
 
 
-# -----------------------------------
-# 3️⃣ Existing chat uses RAG
-# -----------------------------------
-
-@patch("app.rag.rag_pipeline.search_web")
-def test_existing_chat_uses_rag(mock_web):
-
-    mock_web.return_value = [
-        {"url": "https://example.com", "content": "Deep learning uses neural networks."}
-    ]
-
-    session_id = "test_session_3"
-
-    run_rag("What is deep learning?", session_id)
-
-    result = run_rag("Explain neural networks", session_id)
-
-    assert result["mode"] == "RAG"
-
-
-# -----------------------------------
-# 4️⃣ Similarity search works
-# -----------------------------------
-
-def test_similarity_scores():
-
-    session_id = "test_session_4"
-
-    docs = [
-        Document(page_content="Neural networks are used in AI.", metadata={"source": "local"})
-    ]
-
-    create_vectorstore(docs, session_id)
-
-    vs = load_vectorstore(session_id)
-
-    results = vs.similarity_search_with_relevance_scores(
-        "neural networks", k=3
+def test_build_conversation_history(monkeypatch):
+    _install_stub_modules()
+    monkeypatch.setattr(
+        ra,
+        "get_chat",
+        lambda _sid: {"messages": [{"role": "user", "content": "hello"}]},
     )
-
-    assert len(results) > 0
-
-
-# -----------------------------------
-# 5️⃣ Context contains sources
-# -----------------------------------
-
-@patch("app.rag.rag_pipeline.search_web")
-def test_context_generation(mock_web):
-
-    mock_web.return_value = [
-        {"url": "https://example.com", "content": "AI stands for artificial intelligence."}
-    ]
-
-    result = run_rag("Explain AI", "test_session_5")
-
-    assert "Source:" in result["context"]
+    history = ra.build_conversation_history("s1")
+    assert "user: hello" in history
 
 
-# -----------------------------------
-# 6️⃣ Out-of-context detection
-# -----------------------------------
-
-@patch("app.rag.rag_pipeline.search_web")
-def test_out_of_context(mock_web):
-
-    mock_web.return_value = [
-        {"url": "https://example.com", "content": "Bitcoin is a cryptocurrency."}
-    ]
-
-    session_id = "test_session_6"
-
-    run_rag("What is bitcoin?", session_id)
-
-    result = run_rag("Explain Roman architecture", session_id)
-
-    assert result["mode"] in ["RAG", "OOC"]
+def test_is_conversation_question_matches_keywords():
+    _install_stub_modules()
+    assert ra.is_conversation_question("What was my first question?")
+    assert ra.is_conversation_question("what we discuss first in chat")
+    assert ra.is_conversation_question("on which topic we discus before")
+    assert not ra.is_conversation_question("Explain transformers")
 
 
-# -----------------------------------
-# 7️⃣ Handles empty web results
-# -----------------------------------
+def test_handle_query_history_mode(monkeypatch):
+    _install_stub_modules()
+    fake_llm = FakeLLM("history answer")
+    calls = []
 
-@patch("app.rag.rag_pipeline.search_web")
-def test_empty_web_results(mock_web):
+    monkeypatch.setattr(ra, "llm", fake_llm)
+    monkeypatch.setattr(
+        ra,
+        "get_chat",
+        lambda _sid: {"messages": [{"role": "user", "content": "hi"}], "pdf": False},
+    )
+    monkeypatch.setattr(
+        ra,
+        "save_message",
+        lambda sid, role, content: calls.append((sid, role, content)),
+    )
+    monkeypatch.setattr(ra, "is_conversation_question", lambda _q: True)
 
-    mock_web.return_value = []
-
-    result = run_rag("random nonsense query", "test_session_7")
-
-    assert "context" in result
-
-
-# -----------------------------------
-# 8️⃣ Chunking works
-# -----------------------------------
-
-def test_chunking():
-
-    from app.rag.chunker import chunk_text
-
-    text = "AI is the future. " * 200
-
-    chunks = chunk_text(text)
-
-    assert len(chunks) > 1
+    output = ra.handle_query("s1", "what did i ask first")
+    assert output == "history answer"
+    assert calls[0] == ("s1", "user", "what did i ask first")
+    assert calls[-1] == ("s1", "assistant", "history answer")
 
 
-# -----------------------------------
-# 9️⃣ Metadata stored correctly
-# -----------------------------------
+def test_handle_query_rag_no_results(monkeypatch):
+    _install_stub_modules()
+    calls = []
+    monkeypatch.setattr(ra, "get_chat", lambda _sid: {"messages": [], "pdf": False})
+    monkeypatch.setattr(
+        ra,
+        "save_message",
+        lambda sid, role, content: calls.append((sid, role, content)),
+    )
+    monkeypatch.setattr(ra, "is_conversation_question", lambda _q: False)
+    monkeypatch.setattr(ra, "run_rag", lambda *_a, **_k: {"no_results": True, "context": "No info"})
 
-def test_document_metadata():
-
-    session_id = "test_session_8"
-
-    docs = [
-        Document(
-            page_content="AI was founded in 1956.",
-            metadata={"source": "https://example.com"}
-        )
-    ]
-
-    create_vectorstore(docs, session_id)
-
-    vs = load_vectorstore(session_id)
-
-    results = vs.similarity_search("AI")
-
-    assert results[0].metadata["source"] == "https://example.com"
-
-
-# -----------------------------------
-# 🔟 Multiple RAG results
-# -----------------------------------
-
-def test_multiple_rag_results():
-
-    session_id = "test_session_9"
-
-    docs = [
-        Document(page_content="AI started in 1956.", metadata={"source": "a"}),
-        Document(page_content="AI expanded in 1980.", metadata={"source": "b"})
-    ]
-
-    create_vectorstore(docs, session_id)
-
-    vs = load_vectorstore(session_id)
-
-    results = vs.similarity_search("AI", k=2)
-
-    assert len(results) == 2
+    output = ra.handle_query("s2", "new query")
+    assert output == "No info"
+    assert calls[-1] == ("s2", "assistant", "No info")

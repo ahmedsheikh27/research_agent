@@ -29,7 +29,7 @@ HISTORY_KEYWORDS = [
     "somewhere earlier",
     "center of conversation",
     "mid conversation",
-    "mid chat"
+    "mid chat",
     
 
     # End / latest
@@ -110,6 +110,11 @@ HISTORY_KEYWORDS = [
     # Specific recall
     "when we talked about",
     "when we discussed",
+    "what we discuss first in chat",
+    "what we discussed first in chat",
+    "what we discuss in chat",
+    "on which topic we discuss before",
+    "what topic did we discuss",
     "when i asked about",
     "when you said",
     "when you mentioned",
