@@ -9,7 +9,7 @@ PDF_INDEX_FOLDER = "faiss_indexes/pdf"
 def ensure_pdf_folder():
     os.makedirs(PDF_INDEX_FOLDER, exist_ok=True)
 
-def create_pdf_vectorstore(file_path: str, session_id: str):
+def create_pdf_vectorstore(file_path: str, session_id: str, user_id: str):
     ensure_pdf_folder()
     reader = PdfReader(file_path)
     full_text = ""
@@ -21,9 +21,6 @@ def create_pdf_vectorstore(file_path: str, session_id: str):
     chunks = chunk_text(full_text)
     documents = [Document(page_content=chunk, metadata={"source": "PDF"}) for chunk in chunks]
 
-    vectorstore = create_vectorstore(documents, session_id)
-    
-    save_path = f"{PDF_INDEX_FOLDER}/{session_id}"
-    vectorstore.save_local(save_path)
-    
+    vectorstore = create_vectorstore(documents, session_id, user_id, is_pdf=True)
+
     return vectorstore

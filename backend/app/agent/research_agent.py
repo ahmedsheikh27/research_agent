@@ -9,8 +9,8 @@ llm = ChatGoogleGenerativeAI(
 )
 
 
-def build_conversation_history(session_id: str):
-    chat = get_chat(session_id)
+def build_conversation_history(session_id, user_id):
+    chat = get_chat(session_id, user_id)
     if not chat:
         return ""
 
@@ -25,13 +25,96 @@ def is_conversation_question(query: str):
     return any(k in query.lower() for k in keywords)
 
 
-def handle_query(session_id: str, query: str):
+def build_prompt(mode: str, context: str, query: str) -> str:
 
-    chat = get_chat(session_id)
+    if mode == "PDF":
+        header_text   = "Pdf searched items:"
+        confidence_val = "0.8."
+        format_rule   = "Use ## Markdown headings and full paragraphs. Do NOT use bullet points, lists, or dashes."
+        example_block = f"""\
+Example output:
+
+{header_text}
+
+## Main Topic
+
+A full paragraph explaining the relevant information found in the PDF.
+
+## Supporting Detail (if applicable)
+
+Another paragraph with additional context from the PDF.
+
+Confidence: {confidence_val}"""
+
+    elif mode == "RAG":
+        header_text    = "Rag searched items:"
+        confidence_val = "1.0"
+        format_rule    = "Write each fact as a plain sentence on its own line, separated by a blank line. No bullets, no numbers, no dashes, no symbols."
+        example_block  = f"""\
+Example output:
+
+{header_text}
+
+First relevant piece of information from the knowledge base.
+
+Second relevant piece of information from the knowledge base. https://example.com
+
+Confidence: {confidence_val}"""
+
+    else:  # WEB
+        header_text    = "Web searched results:"
+        confidence_val = "0.5"
+        format_rule    = "Write each fact as a plain sentence on its own line, separated by a blank line. No bullets, no numbers, no dashes, no symbols."
+        example_block  = f"""\
+Example output:
+
+{header_text}
+
+Information about the topic explained clearly here. https://example.com
+
+Another relevant piece of information. https://example.com
+
+Confidence: {confidence_val}"""
+
+    return f"""You are a research assistant. Answer the user's question ONLY using the provided context below.
+
+Mode: {mode}
+User Question: {query}
+
+Context:
+{context}
+
+---
+
+STRICT RULES — follow exactly for mode "{mode}":
+
+1. Start your response with this exact line: {header_text}
+2. {format_rule}
+3. {"Do NOT include any URLs or source links." if mode == "PDF" else "If a source URL exists in the context, place it at the end of that item's line."}
+4. End your response with this exact line: Confidence: {confidence_val}
+5. Do NOT write anything after "Confidence: {confidence_val}".
+6. Do NOT change the header or confidence value.
+
+---
+
+{example_block}
+
+---
+
+Now write your answer strictly following the format shown above.
+"""
+
+
+def handle_query(session_id: str, user_id: str, query: str):
+
+    chat = get_chat(session_id, user_id)
     save_message(session_id, "user", query)
+    if user_id.startswith("guest_"):
+        if chat and len(chat.get("messages", [])) >= 10:
+            return "Guest limit reached. Please login to continue."
 
-    chat_history = build_conversation_history(session_id)
-    is_pdf = chat.get("pdf", False) if chat else False
+    chat_history = build_conversation_history(session_id, user_id)
+    is_pdf = chat.get("is_pdf", False) if chat else False
 
     if is_conversation_question(query):
 
@@ -57,81 +140,33 @@ Answer:
         response = llm.invoke(prompt)
         save_message(session_id, "assistant", response.content)
         return response.content
-    # use RAG / Web
-    rag_result = run_rag(query, session_id, pdf_chat=is_pdf)
-    mode = rag_result["mode"]
+
+    print(f"[DEBUG] session_id: {session_id}")
+    print(f"[DEBUG] chat object: {chat}")         
+    print(f"[DEBUG] is_pdf flag: {is_pdf}")       
+
+    rag_result = run_rag(query, session_id, user_id, pdf_chat=is_pdf)
+
+    if rag_result.get("no_results"):
+        message = rag_result["context"]
+        save_message(session_id, "assistant", message)
+        return message
+
+    mode    = rag_result["mode"]
     context = rag_result["context"]
 
-    if "web_results" in rag_result:
+    
+    if is_pdf and mode in {"RAG", "WEB"}:
+        mode = "PDF"
+
+    if mode == "WEB" and rag_result.get("web_results"):
         for result in rag_result["web_results"]:
-            context += (
-                f"\n\n{result.get('content', '')}\nSource: {result.get('url', 'N/A')}"
-            )
-    prompt = f"""
-You will be explicitly told which mode is active via the "Mode:" field below. Follow it exactly.
+            content = result.get("content", "")
+            url = result.get("url", "N/A")
+            if content:
+                context += f"\n\n{content}\nSource: {url}"
 
-Context:{context}
-
-Mode:{mode}
-
-User Question:{query}
-
-
-Instructions:
-
-You are a research assistant. Your task is to answer the user's question ONLY using the provided context.
----
-
-STRICT RULES:
-
-1. Use ONLY the provided context.
-2. NEVER use external knowledge.
-3. NEVER hallucinate or invent facts.
-4. If the answer is not in the context, respond only with the context message as-is.
-5. Follow the formatting rules strictly.
-
----
-
-Response Format Rules:
-
-If Mode is WEB → start your response with exactly:
-Web searched results:
-
-If Mode is RAG → start your response with exactly:
-Rag searched items:
-
-If Mode is PDF → start your response with exactly:
-Pdf searched items:
-And use format with heading and paragrapghs for answering PDF Mode.
-
-Then provide an unordered list (no bullets, no numbers, no dashes).
-Each item must be on its own line, separated by a blank line.
-If a source URL exists, place it at the end of that item's line.
-
-Example:
-
-Web searched results:
-
-Information about the topic explained clearly here. https://example.com
-
-Another relevant piece of information. https://example.com
-
----
-
-Restrictions:
-- No numbered lists
-- No bullet characters (-, *, •)
-- No JSON output
-- No "Source:" label
-- No extra explanation outside the list
-
----
-
-Confidence:
-- If Mode is WEB → end with: Confidence: 0.5
-- If Mode is PDF → end with: Confidence: 0.8
-- If Mode is RAG → end with: Confidence: 1.0
-"""
+    prompt = build_prompt(mode, context, query)
     response = llm.invoke(prompt)
     final_answer = response.content
     save_message(session_id, "assistant", final_answer)

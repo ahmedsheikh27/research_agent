@@ -12,6 +12,7 @@ try:
     db = client[DB_NAME]
 
     conversation_collection = db["conversations"]
+    user_collection = db["users"]
 
 except ConnectionFailure as e:
     print("MongoDB connection failed")

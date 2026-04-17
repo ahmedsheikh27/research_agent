@@ -1,21 +1,22 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
 import os
+import shutil
 from app.agent.research_agent import handle_query
 from app.rag.pdf_chunks import create_pdf_vectorstore
 from app.memory.memory_manager import create_chat, get_chat, get_all_chats, delete_chat
-from app.database.vector_store import load_vectorstore
+from app.database.vector_store import load_vectorstore, get_base_path
 import gc
+from app.auth.routes import router as auth_router
+from app.auth.dependenceis import get_current_user
 
 app = FastAPI(title="Research Agent")
+app.include_router(auth_router)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",  # Vite default
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,21 +38,25 @@ def read_root():
 
 
 @app.post("/chat/new")
-def new_chat():
+def new_chat(user_id: str = Depends(get_current_user)):
     session_id = str(uuid.uuid4())
-    create_chat(session_id)
+    create_chat(session_id, user_id=user_id, title="New Chat")
     return {"session_id": session_id}
 
 
 @app.post("/chat")
-def chat(request: QueryRequest):
-    response = handle_query(session_id=request.session_id, query=request.query)
+def chat(request: QueryRequest, user_id: str = Depends(get_current_user)):
+    response = handle_query(
+        session_id=request.session_id,
+        user_id=user_id,
+        query=request.query
+    )
     return {"response": response}
 
 
 @app.get("/chat")
-def list_chats():
-    chats = get_all_chats()
+def list_chats(user_id: str = Depends(get_current_user)):
+    chats = get_all_chats(user_id)
 
     for chat in chats:
         chat.pop("_id", None)
@@ -60,8 +65,8 @@ def list_chats():
 
 
 @app.get("/chat/{session_id}")
-def get_single_chat(session_id: str):
-    chat = get_chat(session_id)
+def get_single_chat(session_id: str, user_id: str = Depends(get_current_user)):
+    chat = get_chat(session_id, user_id)
 
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
@@ -70,39 +75,33 @@ def get_single_chat(session_id: str):
     return chat
 
 
-import shutil
-import os
-from fastapi import HTTPException
-
-
 @app.delete("/chat/{session_id}")
-def remove_chat(session_id: str):
-    # 1. First, delete from Database (MongoDB/SQL)
-    result = delete_chat(session_id)
+def remove_chat(
+    session_id: str,
+    user_id: str = Depends(get_current_user)
+):
+    # 🔒 Secure delete (only user's own chat)
+    result = delete_chat(session_id, user_id)
 
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Chat not found")
 
-    # 2. Define the paths
-    paths_to_check = [f"faiss_indexes/{session_id}", f"faiss_indexes/pdf/{session_id}"]
+    # 🧠 Delete FAISS files
+    base_path = get_base_path(user_id)
 
-    # 3. CRITICAL: Trigger Garbage Collection
-    # This forces Python to close any "hanging" file handles
-    # that were opened by load_vectorstore()
+    paths_to_check = [
+        f"{base_path}/chats/{session_id}",
+        f"{base_path}/pdf/{session_id}"
+    ]
     gc.collect()
 
-    # 4. Attempt to delete folders
     for path in paths_to_check:
         if os.path.exists(path):
             try:
                 shutil.rmtree(path)
                 print(f"Successfully deleted: {path}")
             except PermissionError:
-                # If gc.collect() didn't work immediately,
-                # Windows might need a millisecond to release the lock.
-                print(
-                    f"Windows lock detected on {path}. Try manual delete if it persists."
-                )
+                print(f"Windows lock detected on {path}. Try manual delete.")
             except Exception as e:
                 print(f"Error deleting {path}: {e}")
 
@@ -110,20 +109,20 @@ def remove_chat(session_id: str):
 
 
 @app.post("/chat/upload-pdf")
-async def upload_pdf(file: UploadFile = File(...)):
-    """
-    Upload a PDF and create a new chat session for it.
-    The chat will only use PDF chunks for RAG.
-    """
-    # Save PDF temporarily
+async def upload_pdf(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user)
+):
     temp_file_path = os.path.join(PDF_TEMP_FOLDER, file.filename)
+
     with open(temp_file_path, "wb") as f:
         f.write(await file.read())
 
     session_id = str(uuid.uuid4())
-    create_chat(session_id, pdf=True)
 
-    create_pdf_vectorstore(temp_file_path, session_id)
+    create_chat(session_id, user_id=user_id, pdf=True, title=file.filename)
+
+    create_pdf_vectorstore(temp_file_path, session_id, user_id)
 
     os.remove(temp_file_path)
 
