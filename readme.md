@@ -1,38 +1,63 @@
-# Research Agent – Full Stack AI Application
+---
 
-A full-stack AI-powered Research Agent built with:
+# **Research Agent – Full Stack AI Application**
 
-- **FastAPI** (Backend)
--  **React + Vite** (Frontend)
--  **MongoDB Atlas** (Database)
--  **FAISS** (Vector Store)
--  **Tavily API** (Web Search)
--  **Google API** (AI Integration)
+A full-stack AI-powered Research Agent designed to deliver intelligent, context-aware responses using Retrieval-Augmented Generation (RAG).
+
+The system combines modern backend architecture, scalable data storage, and an interactive frontend to provide a ChatGPT-like experience with private user sessions, document-based querying, and real-time knowledge retrieval.
 
 ---
 
-#  Project Overview
+## **Tech Stack**
 
-This project allows users to interact with an AI-powered research assistant.  
-The backend handles AI processing, database storage, and vector search.  
-The frontend provides a clean chat interface for users.
+### **Backend**
+
+* FastAPI
+* Python
+* MongoDB Atlas
+* FAISS (Vector Store)
+* Google Generative AI (Gemini)
+* Tavily API (Web Search)
+* Wikipedia API (Knowledge Source)
+* JWT Authentication
+
+### **Frontend**
+
+* React
+* Vite
 
 ---
 
-# Prerequisites
+## **Core Features**
 
-Make sure you have the following installed:
-
-- Python (3.10 or higher recommended)
-- Node.js (v18+ recommended)
-- npm
-- MongoDB Atlas account
-- Google API Key
-- Tavily API Key
+* Multi-user authentication with JWT-based security
+* Private chat sessions per user
+* Guest mode for temporary usage
+* Retrieval-Augmented Generation (RAG) pipeline
+* PDF-based document chat
+* Web search integration (Tavily API)
+* Wikipedia-based knowledge retrieval
+* Vector similarity search using FAISS
+* Dynamic chat title generation
+* Session-based memory management
+* Clean and responsive chat interface
 
 ---
 
-#  Project Structure
+## **Project Overview**
+
+This application allows users to interact with an AI-powered research assistant capable of answering queries using:
+
+* Stored vector knowledge
+* Uploaded documents
+* Real-time web data
+* Structured conversation history
+
+The backend handles AI processing, authentication, and data management, while the frontend provides a seamless user experience for chat interactions.
+
+---
+
+## **Project Structure**
 
 ```
 project-root/
@@ -50,144 +75,120 @@ project-root/
 
 ---
 
-#  Backend Setup (FastAPI)
+## **Prerequisites**
 
-## 1️⃣ Navigate to the Backend Folder
+Ensure the following are installed:
 
-```bash
-cd backend
-```
+* Python (3.10 or higher)
+* Node.js (v18 or higher)
+* npm
+* MongoDB Atlas account
+* Google API Key
+* Tavily API Key
 
 ---
 
-## 2️⃣ Create a Python Virtual Environment
+## **Backend Setup (FastAPI)**
 
-```bash
+### 1. Navigate to Backend
+
+```
+cd backend
+```
+
+### 2. Create Virtual Environment
+
+```
 python -m venv venv
 ```
 
----
+### 3. Activate Virtual Environment
 
-## 3️⃣ Activate the Virtual Environment
+**Windows:**
 
-### On Windows:
-```bash
+```
 venv\Scripts\activate
 ```
 
-### On macOS/Linux:
-```bash
+**macOS/Linux:**
+
+```
 source venv/bin/activate
 ```
 
----
+### 4. Install Dependencies
 
-## 4️⃣ Install Backend Dependencies
-
-After activating your virtual environment:
-
-```bash
+```
 pip install -r requirements.txt
 ```
-## 5️⃣ Create the `.env` File
 
-Inside the `backend` folder, create a file named:
+### 5. Environment Configuration
+
+Create a `.env` file inside the backend directory and copy values from `.env.example`.
+
+Example configuration:
 
 ```
-.env
-```
-
-Copy all variables from `.env.example` and paste them into your `.env` file.
-
-Your `.env` file should look like this:
-
-```env
-MONGO_URI="mongodb+srv://uername:password@cluster0.eivnv6m.mongodb.net/?appName=Cluster0"
+MONGO_URI="your_mongodb_connection_string"
 DB_NAME=research_agent
-GOOGLE_API_KEY="your google api key"
+GOOGLE_API_KEY="your_google_api_key"
 FAISS_PATH=faiss_index
-TAVILY_API_KEY="tavily api key here"
+TAVILY_API_KEY="your_tavily_api_key"
+JWT_SECRET_KEY="your_secret_key"
+JWT_ALGORITHM="HS256"
 ```
 
 ---
 
-# 🔐 MongoDB Atlas Configuration
+## **MongoDB Atlas Configuration**
 
-1. Go to MongoDB Atlas.
-2. Create a new cluster (if you don’t already have one).
-3. Click **Connect → Drivers**.
-4. Copy your MongoDB connection string.
-5. Replace:
-
-```
-Your MongoDB connection string here
-```
-
-with your actual connection string.
-
-Example:
-
-```env
-MONGO_URI="mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority"
-```
-Make sure:
-- Your IP address is added in **Network Access**
-- Database user credentials are correct
+* Create a cluster in MongoDB Atlas
+* Add your IP address in Network Access
+* Create database user credentials
+* Obtain the connection string and update `MONGO_URI`
 
 ---
 
+## **Running the Backend**
 
----
-
-## 6️⃣ Run the Backend Server
-
-Open a **new terminal**, then:
-
-```bash
+```
 cd backend
 venv\Scripts\activate   # Windows
-```
+# or
+source venv/bin/activate
 
-(or `source venv/bin/activate` on macOS/Linux)
-
-Then run:
-
-```bash
 uvicorn app.main:app --reload
 ```
 
-If successful, your backend will run at:
+Backend will be available at:
+
 ```
 http://127.0.0.1:8000
 ```
 
 ---
 
-#  Frontend Setup (React.js + Vite)
+## **Frontend Setup (React + Vite)**
 
-## 1️⃣ Open a New Terminal
+### 1. Navigate to Frontend
 
-```bash
+```
 cd chat-frontend
 ```
 
----
+### 2. Install Dependencies
 
-## 2️⃣ Install Node Dependencies
-
-```bash
+```
 npm install
 ```
 
----
+### 3. Run Development Server
 
-## 3️⃣ Run the Frontend
-
-```bash
+```
 npm run dev
 ```
 
-Your frontend will start at:
+Frontend will be available at:
 
 ```
 http://localhost:5173
@@ -195,37 +196,45 @@ http://localhost:5173
 
 ---
 
-#  Running the Application
+## **Running the Application**
 
-After both backend and frontend are running:
-
-1. Open your browser (Google Chrome recommended).
-2. Visit:
+1. Start the backend server
+2. Start the frontend server
+3. Open the application in your browser
 
 ```
-http://localhost:5173/
+http://localhost:5173
 ```
-
-Your full-stack Research Agent application should now be running successfully 🎉
 
 ---
 
-# Quick Command Summary
+## **System Architecture**
 
-## Backend
+The system follows a modular architecture:
 
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+1. User sends a query through the frontend
+2. Backend authenticates and validates the user
+3. Query is processed through the RAG pipeline
+4. Data is retrieved from:
 
-## Frontend
+   * FAISS vector store
+   * PDF embeddings
+   * Web search (Tavily)
+   * Wikipedia API
+5. Context is passed to the language model
+6. Response is generated and stored per session
+7. Result is returned to the frontend
 
-```bash
-cd chat-frontend
-npm install
-npm run dev
-```
+---
+
+## **Future Improvements**
+
+* Streaming responses
+* Redis caching layer
+* Rate limiting
+* Chat sharing capabilities
+* Deployment with Docker and CI/CD
+---
+## **License**
+This project is for educational and development purposes.
+---
