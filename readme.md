@@ -1,8 +1,8 @@
 ---
 
-# **Research Agent – Full Stack AI Application**
+# **Inquiro – Full Stack AI Application**
 
-A full-stack AI-powered Research Agent designed to deliver intelligent, context-aware responses using Retrieval-Augmented Generation (RAG).
+A full-stack AI-powered Inquiro designed to deliver intelligent, context-aware responses using Retrieval-Augmented Generation (RAG).
 
 The system combines modern backend architecture, scalable data storage, and an interactive frontend to provide a ChatGPT-like experience with private user sessions, document-based querying, and real-time knowledge retrieval.
 
